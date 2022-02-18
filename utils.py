@@ -1,11 +1,7 @@
 import configparser
-
 from pyspark import SparkConf
-from pyspark.sql.functions import explode
-from pyspark.sql.types import StructType, StructField, DateType, StringType, IntegerType, ArrayType
-from pyspark.sql.functions import explode
-from pyspark.sql.functions import col, split,  regexp_extract, udf, lit, size
-import re
+from pyspark.sql.types import StructType, StructField, DateType, StringType
+from pyspark.sql.functions import explode, col, split
 
 
 def load_adobe_df(spark, data_file):
@@ -58,30 +54,14 @@ def split_adobe_df(adobe_exploded_df):
     return df1
 
 def scrap_search_url(adobe_df):
-    # keywords = ["p=", "q=", "k="]
-    #
-    # def build_regex(keywords):
-    #     res = '('
-    #     for key in keywords:
-    #         res += '\b' + key + '\b|'
-    #     res = res[0:len(res) - 1] + ')'
-    #
-    #     return res
-    #
-    # def get_matching_string(line, regex):
-    #     matches = re.findall(regex, line)
-    #     return matches if matches else None
-    #
-    # udf_func = udf(lambda line, regex: get_matching_string(line, regex),
-    #                ArrayType(StringType()))
-    #
-    # df = adobe_df.withColumn('matched', udf_func(adobe_df['referrer'], lit(build_regex(keywords)))).withColumn('count',
-    #                                                                                              size('matched'))
-    #df = adobe_df.withColumn('Search', regexp_extract(adobe_df.referrer, "(p=)(q=)(k=)", 1))
-    df1 = adobe_df.withColumn("search1", split(split(adobe_df.referrer, "(p=)(q=)(k=)")[1], "&")[0])
-    #df2 = df1.withColumn("search2", split(split(adobe_df.referrer, "q=")[1], "&")[0])
-    #df3 = df2.withColumn("search3", split(split(adobe_df.referrer, "k=")[1], "&")[0])
-    #tmp = df3.withColumn('search', coalesce(df3['search1'], df3['search2'], df3['search3']))
+    search_str_begin = "(p=|q=|k=)"
+    search_str_terminator = "&"
+    domain_str_begin="//"
+    domain_str_end = "/"
+
+    df1 = adobe_df.withColumn("search1", split(split(adobe_df.referrer, search_str_begin)[1], search_str_terminator)[0])
+    df1 = df1.withColumn("domain_name", split(split(adobe_df.referrer, domain_str_begin)[1], domain_str_end)[0])
+    df1 = df1.drop("referrer").drop("page_url")
     return df1
 
 def get_spark_app_config():
